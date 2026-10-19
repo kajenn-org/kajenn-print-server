@@ -1,0 +1,7 @@
+# Runtime dependency surface on kajenn.
+kajenn.application
+kajenn.exceptions
+kajenn.request
+kajenn.applications.mcp
+kajenn.response
+kajenn.types

@@ -1,0 +1,13 @@
+#!/bin/sh
+# Lint, advisory type check and kajenn boundary check before each commit.
+set -eu
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+# Hooks also run from shells and Git GUIs without the virtual environment.
+if [ -x .venv/bin/python ]; then
+    PATH="$root/.venv/bin:$PATH"
+fi
+python=$(command -v python || command -v python3)
+"$python" -m ruff check src tests examples tools
+"$python" -m mypy src || printf '%s\n' 'mypy findings are advisory.'
+"$python" tools/check_boundary.py

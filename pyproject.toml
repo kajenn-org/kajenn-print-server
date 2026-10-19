@@ -1,0 +1,77 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kajenn-print-server"
+version = "0.1.0a1"
+description = "A print network service for kajenn: HTML to PDF"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [{name = "Genropy Team", email = "info@softwell.it"}]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Framework :: AsyncIO",
+]
+dependencies = [
+    "kajenn>=0.5.0",
+    "genro-builders>=0.27.0",
+    "genro-routes>=0.30.1",
+    "weasyprint>=70.0",
+    "pydantic>=2.0",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+kajenn-print = "kajenn_print_server.cli:main"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+    "pypdf>=5.0",
+]
+dev = ["kajenn-print-server[test]", "ruff>=0.1.0", "mypy>=1.0", "build>=1.0"]
+docs = ["sphinx>=7.0", "sphinx-rtd-theme>=2.0", "myst-parser>=2.0"]
+
+[project.urls]
+Repository = "https://github.com/kajenn-org/kajenn-print-server"
+"Bug Tracker" = "https://github.com/kajenn-org/kajenn-print-server/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kajenn_print_server"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/examples", "/docs", "/tools", "/hooks", "/README.md", "/CLAUDE.md", "/LICENSE", "/NOTICE", "/pyproject.toml", "/.readthedocs.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=kajenn_print_server --cov-report=term-missing"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+follow_imports = "silent"
+ignore_missing_imports = true
+
+[tool.coverage.paths]
+source = ["src/kajenn_print_server", "*/site-packages/kajenn_print_server"]
