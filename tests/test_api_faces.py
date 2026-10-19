@@ -15,10 +15,12 @@
 """Contract: the OpenAPI document and the MCP tool, each filtered by the caller's tags."""
 
 import base64
+import io
 import json
 
 from kajenn import AsgiServer
 from kajenn.config import AsgiConfigBuilder
+from pypdf import PdfReader
 
 from kajenn_print_server import PrintApplication
 from tests.conftest import OTHER_TOKEN, started_client
@@ -41,7 +43,9 @@ async def test_schema_documents_the_rest_face(client):
     assert operation["security"] == [{"BearerAuth": []}]
     assert "application/pdf" in operation["responses"]["200"]["content"]
     body = operation["requestBody"]["content"]["application/json"]["schema"]
-    assert set(body["properties"]) == {"html", "base_url", "filename"}
+    assert set(body["properties"]) == {
+        "html", "base_url", "filename", "stylesheets", "presentational_hints"
+    }
     assert "get" in schema["paths"]["/health"]
     assert "/html_to_pdf" not in schema["paths"]  # an MCP tool, not a REST route
 
@@ -85,6 +89,17 @@ async def test_tool_answers_the_pdf_base64_encoded(client):
     assert payload["size"] == len(pdf)
     assert payload["filename"] == "agent_report.pdf"
     assert payload["content_type"] == "application/pdf"
+
+
+async def test_tool_takes_stylesheets(client):
+    arguments = {"html": "<p>x</p>", "stylesheets": ["@page { size: A5 }"],
+                 "presentational_hints": True}
+    message = rpc("tools/call", name="html_to_pdf", arguments=arguments)
+    result = (await client.post("/print/mcp", json=message)).json()["result"]
+    assert not result.get("isError")
+    pdf = base64.b64decode(json.loads(result["content"][0]["text"])["data_base64"])
+    box = PdfReader(io.BytesIO(pdf)).pages[0].mediabox
+    assert round(float(box.width)) == 420
 
 
 async def test_tool_reports_a_missing_source(client):
