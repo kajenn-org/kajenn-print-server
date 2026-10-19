@@ -1,0 +1,28 @@
+# Local testing: build the image from this checkout and serve it on port 8000.
+#
+#   docker compose up --build            # authentication off
+#   kajenn-print some.html               # from another terminal
+#
+# For token authentication, copy .env.example to .env, set PRINT_AUTH=token and
+# both secrets, then `docker compose up --build`. Api keys persist in the
+# print-data volume; `docker compose down -v` removes them.
+name: kajenn-print-server
+
+services:
+  print:
+    build: .
+    image: kajenn-print-server:local
+    ports:
+      - "${PRINT_PORT:-8000}:8000"
+    environment:
+      PRINT_AUTH: ${PRINT_AUTH:-off}
+      KAJENN_ADMIN_TOKEN: ${KAJENN_ADMIN_TOKEN:-}
+      KAJENN_STORAGE_KEY: ${KAJENN_STORAGE_KEY:-}
+      PRINT_REMOTE_RESOURCES: ${PRINT_REMOTE_RESOURCES:-off}
+      PRINT_FETCH_TIMEOUT: ${PRINT_FETCH_TIMEOUT:-10}
+    volumes:
+      - print-data:/data
+    restart: unless-stopped
+
+volumes:
+  print-data:

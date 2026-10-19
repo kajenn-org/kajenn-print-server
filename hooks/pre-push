@@ -1,0 +1,11 @@
+#!/bin/sh
+# The full test suite before each push.
+set -eu
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+# Hooks also run from shells and Git GUIs without the virtual environment.
+if [ -x .venv/bin/python ]; then
+    PATH="$root/.venv/bin:$PATH"
+fi
+python=$(command -v python || command -v python3)
+"$python" -m pytest -q
