@@ -46,6 +46,13 @@ curl -F html=@invoice.html -o invoice.pdf http://127.0.0.1:8000/print/pdf
 | `html` | The HTML source (required) |
 | `base_url` | Base for relative URLs in the source |
 | `filename` | Attachment name in `Content-Disposition`, default `document.pdf` |
+| `stylesheets` | List of CSS sources applied as user stylesheets, in order (JSON body only) |
+| `presentational_hints` | Honour HTML attributes such as `width`, `align` or `bgcolor`; default `false` |
+
+User stylesheets come after the document in the cascade but lose to its rules
+unless declared `!important`, so a caller can impose a page size or margins on a
+document that sets its own. Their URLs follow the same fetching rules as the
+document's: only `data:` URLs unless the server allows remote resources.
 
 The answer is `200` with `Content-Type: application/pdf` and a `Server-Timing:
 render;dur=<ms>` header. A missing, empty or non-UTF-8 source is `400`; a body

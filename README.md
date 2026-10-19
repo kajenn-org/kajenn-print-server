@@ -65,7 +65,9 @@ curl -H "Authorization: Bearer $PRINT_KEY" -F html=@invoice.html \
 ```
 
 `POST <mount>/pdf` takes `html` (required), `base_url` and `filename`, as JSON
-or multipart, and answers `application/pdf` as an attachment.
+or multipart, and answers `application/pdf` as an attachment. A JSON body may
+also carry `stylesheets` (CSS sources applied on top of the document's own) and
+`presentational_hints`.
 `GET <mount>/health` is a public liveness probe.
 
 ## API documentation and MCP

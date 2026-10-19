@@ -142,3 +142,60 @@ async def test_remote_resources_when_enabled(make_client, image_server):
     assert response.status_code == 200
     assert hits == ["/pixel.png"]
     assert pdf_images(response.content) == 1
+
+
+def page_size(content: bytes) -> tuple[float, float]:
+    box = PdfReader(io.BytesIO(content)).pages[0].mediabox
+    return round(float(box.width)), round(float(box.height))
+
+
+def text_x(content: bytes, word: str) -> float:
+    positions = []
+
+    def visitor(text, cm, tm, font, size):
+        if word in text:
+            positions.append(tm[4])
+
+    PdfReader(io.BytesIO(content)).pages[0].extract_text(visitor_text=visitor)
+    assert positions, f"{word} not found in the PDF"
+    return positions[0]
+
+
+A4 = (595, 842)
+A5 = (420, 595)
+
+
+async def test_stylesheets_apply_on_top_of_the_document(client):
+    response = await client.post(
+        "/print/pdf", json={"html": "<p>x</p>", "stylesheets": ["@page { size: A5 }"]}
+    )
+    assert response.status_code == 200
+    assert page_size(response.content) == A5
+
+
+def test_user_stylesheets_lose_to_the_document_unless_important():
+    html = "<style>@page { size: A4 }</style><p>x</p>"
+    assert page_size(render_pdf(html, stylesheets=["@page { size: A5 }"])) == A4
+    assert page_size(render_pdf(html, stylesheets=["@page { size: A5 !important }"])) == A5
+
+
+async def test_stylesheets_must_be_a_list_of_strings(client):
+    response = await client.post("/print/pdf", json={"html": "<p>x</p>", "stylesheets": [1]})
+    assert response.status_code in (400, 422)
+
+
+def test_stylesheet_urls_follow_the_fetching_rules(tmp_path):
+    image = tmp_path / "pixel.png"
+    image.write_bytes(png_bytes())
+    html = '<div style="width: 10px; height: 10px"></div>'
+    for source in (image.as_uri(), png_data_url()):
+        css = f'div {{ background: url("{source}") }}'
+        rendered = render_pdf(html, stylesheets=[css])
+        assert (b"/Image" in rendered) is source.startswith("data:")
+
+
+async def test_presentational_hints(client):
+    html = '<table width="600"><tr><td align="right">MARK</td></tr></table>'
+    plain = await client.post("/print/pdf", json={"html": html})
+    hinted = await client.post("/print/pdf", json={"html": html, "presentational_hints": True})
+    assert text_x(hinted.content, "MARK") > text_x(plain.content, "MARK") + 300

@@ -25,7 +25,7 @@ from typing import Annotated, Any
 from genro_builders.builder import element
 from genro_routes import route
 from pydantic import Field
-from weasyprint import HTML
+from weasyprint import CSS, HTML
 from weasyprint.urls import URLFetcher
 
 from kajenn.application import ApplicationGrammar
@@ -64,12 +64,28 @@ class PrintGrammar(ApplicationGrammar):
 
 
 def render_pdf(
-    html: str, base_url: str | None = None, remote_resources: bool = False, timeout: int = 10
+    html: str,
+    base_url: str | None = None,
+    remote_resources: bool = False,
+    timeout: int = 10,
+    stylesheets: list[str] | None = None,
+    presentational_hints: bool = False,
 ) -> bytes:
-    """Render an HTML source to PDF bytes. Blocking: call it off the event loop."""
+    """Render an HTML source to PDF bytes. Blocking: call it off the event loop.
+
+    ``stylesheets`` are CSS sources applied as user stylesheets, on top of the
+    document's own; their URLs follow the same fetching rules as the document's.
+    ``presentational_hints`` honours HTML presentational attributes such as
+    ``width`` or ``bgcolor``.
+    """
     protocols = ("data", "http", "https") if remote_resources else ("data",)
     fetcher = URLFetcher(timeout=timeout, allowed_protocols=protocols)
-    document: bytes = HTML(string=html, base_url=base_url, url_fetcher=fetcher).write_pdf()
+    user_css = [
+        CSS(string=css, base_url=base_url, url_fetcher=fetcher) for css in stylesheets or ()
+    ]
+    document: bytes = HTML(string=html, base_url=base_url, url_fetcher=fetcher).write_pdf(
+        stylesheets=user_css, presentational_hints=presentational_hints
+    )
     return document
 
 
@@ -91,6 +107,18 @@ HtmlSource = Annotated[
     ),
 ]
 """``html`` of the REST route: ``Any`` so a multipart ``UploadedFile`` validates too."""
+
+Stylesheets = Annotated[
+    list[str] | None,
+    Field(description="CSS sources applied as user stylesheets, in order, on top of the "
+          "document's own: they win over the document only with !important."),
+]
+
+PresentationalHints = Annotated[
+    bool,
+    Field(description="Honour HTML presentational attributes such as width, align or "
+          "bgcolor."),
+]
 
 PRINT_ROUTES = "pdf,html_to_pdf"
 """The routes guarded by ``PRINT_TAG``, comma-separated as the router targets them."""
@@ -126,7 +154,13 @@ class PrintApplication(McpOpenApiApplication):
             self.route.nodes()
             self.route.auth.configure(_target=PRINT_ROUTES, rule="")
 
-    async def _render(self, html, base_url: str | None) -> tuple[bytes, float]:
+    async def _render(
+        self,
+        html,
+        base_url: str | None,
+        stylesheets: list[str] | None = None,
+        presentational_hints: bool = False,
+    ) -> tuple[bytes, float]:
         """Validate the source, render it off the loop; the PDF and its milliseconds."""
         if isinstance(html, UploadedFile):
             html = html.data
@@ -137,6 +171,10 @@ class PrintApplication(McpOpenApiApplication):
                 raise HTTPBadRequest("the HTML source must be UTF-8 encoded") from None
         if not isinstance(html, str) or not html.strip():
             raise HTTPBadRequest("an HTML source is required in the 'html' field")
+        if stylesheets is not None and not (
+            isinstance(stylesheets, list) and all(isinstance(css, str) for css in stylesheets)
+        ):
+            raise HTTPBadRequest("'stylesheets' must be a list of CSS strings")
         server = self.server
         if server is None:
             raise RuntimeError(f"{type(self).__name__} is not attached to a server")
@@ -147,6 +185,8 @@ class PrintApplication(McpOpenApiApplication):
             base_url,
             bool(self.config("pdf.remote_resources", default=False)),
             int(self.config("pdf.timeout", default=10)),
+            stylesheets,
+            bool(presentational_hints),
         )
         return document, (time.perf_counter() - started) * 1000
 
@@ -178,15 +218,20 @@ class PrintApplication(McpOpenApiApplication):
         html: HtmlSource = None,
         base_url: str | None = None,
         filename: str = "document.pdf",
+        stylesheets: Stylesheets = None,
+        presentational_hints: PresentationalHints = False,
         _request=None,
     ) -> bytes:
         """Render ``html`` to PDF and answer it as ``application/pdf``.
 
         ``html`` is a JSON field or a multipart part (a file or a text field).
         ``base_url`` resolves relative URLs in the source; ``filename`` names
-        the attachment in ``Content-Disposition``.
+        the attachment in ``Content-Disposition``. ``stylesheets`` and
+        ``presentational_hints`` tune the rendering; send them in a JSON body.
         """
-        document, elapsed_ms = await self._render(html, base_url)
+        document, elapsed_ms = await self._render(
+            html, base_url, stylesheets, presentational_hints
+        )
         if _request is not None:
             response = _request.response
             response.set_header(
@@ -198,16 +243,25 @@ class PrintApplication(McpOpenApiApplication):
 
     @route(auth_rule=PRINT_TAG, channel_channels="mcp")
     async def html_to_pdf(
-        self, html: str, base_url: str | None = None, filename: str = "document.pdf"
+        self,
+        html: str,
+        base_url: str | None = None,
+        filename: str = "document.pdf",
+        stylesheets: Stylesheets = None,
+        presentational_hints: PresentationalHints = False,
     ) -> dict:
         """Render an HTML document to PDF.
 
         Returns the PDF base64-encoded in ``data_base64``, with its ``filename``,
         ``content_type`` and ``size`` in bytes. Only ``data:`` URLs are loaded
         unless the server allows remote resources; ``base_url`` resolves
-        relative URLs.
+        relative URLs. ``stylesheets`` are CSS sources applied on top of the
+        document's own; ``presentational_hints`` honours attributes such as
+        ``width`` or ``bgcolor``.
         """
-        document, elapsed_ms = await self._render(html, base_url)
+        document, elapsed_ms = await self._render(
+            html, base_url, stylesheets, presentational_hints
+        )
         return {
             "filename": _safe_filename(filename),
             "content_type": "application/pdf",
