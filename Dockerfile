@@ -14,6 +14,7 @@ FROM python:${PYTHON_VERSION}-slim
 # Pango renders the text; the fonts give documents without web fonts a usable default.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        weasyprint \ 
         libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 \
         fonts-dejavu-core fonts-liberation2 \
     && rm -rf /var/lib/apt/lists/*
