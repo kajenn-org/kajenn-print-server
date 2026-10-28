@@ -54,10 +54,6 @@ async def test_multipart_file_source(client):
     assert response.headers["content-disposition"] == 'attachment; filename="document.pdf"'
 
 
-@pytest.mark.xfail(
-    strict=True, reason="kajenn decodes urlencoded bodies with genro_tytx.from_qs, which "
-    "does not percent-decode values"
-)
 async def test_form_field_source(client):
     response = await client.post("/print/pdf", data={"html": "<p>Form body</p>"})
     assert response.status_code == 200

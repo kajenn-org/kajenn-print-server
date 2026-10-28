@@ -57,8 +57,6 @@ document's: only `data:` URLs unless the server allows remote resources.
 The answer is `200` with `Content-Type: application/pdf` and a `Server-Timing:
 render;dur=<ms>` header. A missing, empty or non-UTF-8 source is `400`; a body
 kajenn cannot decode, such as a bare `text/html` body, is `415`.
-`application/x-www-form-urlencoded` bodies are not supported yet: kajenn
-currently passes their values through still percent-encoded.
 
 ### From the command line
 
