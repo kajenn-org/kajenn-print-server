@@ -3,8 +3,7 @@ name: Tests
   push:
   pull_request:
   workflow_dispatch:
-  schedule:
-    - cron: '23 5 * * *'
+
 permissions:
   contents: read
 jobs:
