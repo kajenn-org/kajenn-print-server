@@ -91,6 +91,11 @@ the process list. Failures print one line on stderr and exit with status 1.
 The schema lists only what the caller may execute: without a `print`
 credential it shows `health` but not `pdf`.
 
+The server itself answers the public health probes `GET /healthz`, `GET /livez`
+and `GET /readyz` with `ok`, and with 503 while it shuts down, so a load
+balancer stops sending traffic first. Point Kubernetes probes at them; the
+Docker image's healthcheck uses `/readyz`.
+
 ## MCP tool
 
 The MCP endpoint offers one tool, `html_to_pdf`, with the same arguments as

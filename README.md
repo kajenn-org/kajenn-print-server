@@ -68,7 +68,9 @@ curl -H "Authorization: Bearer $PRINT_KEY" -F html=@invoice.html \
 or multipart, and answers `application/pdf` as an attachment. A JSON body may
 also carry `stylesheets` (CSS sources applied on top of the document's own) and
 `presentational_hints`.
-`GET <mount>/health` is a public liveness probe.
+`GET <mount>/health` is a public liveness probe. The server also answers the
+public probes `GET /healthz`, `/livez` and `/readyz`; they answer 503 while the
+server shuts down, and the Docker image's healthcheck uses `/readyz`.
 
 ## API documentation and MCP
 

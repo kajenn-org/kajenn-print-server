@@ -32,7 +32,7 @@ jobs:
       - name: Smoke test with authentication off
         run: |
           docker run -d --name print-open -p 8001:8000 -e PRINT_AUTH=off kajenn-print-server:ci
-          for i in $(seq 30); do curl -fsS http://127.0.0.1:8001/print/health && break; sleep 1; done
+          for i in $(seq 30); do curl -fsS http://127.0.0.1:8001/readyz && break; sleep 1; done
           curl -fsS -H 'Content-Type: application/json' -d '{"html":"<h1>CI</h1>"}' \
             -o open.pdf http://127.0.0.1:8001/print/pdf
           head -c 5 open.pdf | grep -q '%PDF-'
@@ -42,7 +42,7 @@ jobs:
           export KAJENN_STORAGE_KEY="$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
           docker run -d --name print-token -p 8002:8000 \
             -e KAJENN_ADMIN_TOKEN -e KAJENN_STORAGE_KEY kajenn-print-server:ci
-          for i in $(seq 30); do curl -fsS http://127.0.0.1:8002/print/health && break; sleep 1; done
+          for i in $(seq 30); do curl -fsS http://127.0.0.1:8002/readyz && break; sleep 1; done
           test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
             -d '{"html":"<p>x</p>"}' http://127.0.0.1:8002/print/pdf)" = 401
           KEY="$(curl -fsS -H "Authorization: Bearer $KAJENN_ADMIN_TOKEN" -H 'Content-Type: application/json' \

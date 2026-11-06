@@ -114,6 +114,14 @@ async def test_health_is_public(make_client):
     assert response.json() == {"status": "ok"}
 
 
+@pytest.mark.parametrize("path", ["/healthz", "/livez", "/readyz"])
+async def test_server_probes_are_public(make_client, path):
+    client = await make_client(token=None)
+    response = await client.get(path)
+    assert response.status_code == 200
+    assert response.text == "ok"
+
+
 async def test_recipe_root_redirects_to_the_docs(recipe_env):
     recipe_env.setenv("PRINT_AUTH", "off")
     server, client = await recipe_client()
